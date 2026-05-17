@@ -688,6 +688,107 @@ export const CreateReviewBody = zod.object({
 
 
 /**
+ * @summary List expenses for a barbershop
+ */
+export const ListExpensesQueryParams = zod.object({
+  "barbershopId": zod.coerce.number(),
+  "month": zod.coerce.string().nullish()
+})
+
+export const ListExpensesResponseItem = zod.object({
+  "id": zod.number(),
+  "barbershopId": zod.number(),
+  "amount": zod.number(),
+  "category": zod.enum(['rent', 'salaries', 'supplies', 'utilities', 'marketing', 'equipment', 'maintenance', 'insurance', 'taxes', 'other']),
+  "type": zod.enum(['fixed', 'variable']),
+  "description": zod.string().nullish(),
+  "date": zod.string(),
+  "createdAt": zod.string()
+})
+export const ListExpensesResponse = zod.array(ListExpensesResponseItem)
+
+
+/**
+ * @summary Create a new expense
+ */
+export const CreateExpenseBody = zod.object({
+  "barbershopId": zod.number(),
+  "amount": zod.number(),
+  "category": zod.enum(['rent', 'salaries', 'supplies', 'utilities', 'marketing', 'equipment', 'maintenance', 'insurance', 'taxes', 'other']),
+  "type": zod.enum(['fixed', 'variable']),
+  "description": zod.string().optional(),
+  "date": zod.string()
+})
+
+
+/**
+ * @summary Update an expense
+ */
+export const UpdateExpenseParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateExpenseBody = zod.object({
+  "amount": zod.number().optional(),
+  "category": zod.enum(['rent', 'salaries', 'supplies', 'utilities', 'marketing', 'equipment', 'maintenance', 'insurance', 'taxes', 'other']).optional(),
+  "type": zod.enum(['fixed', 'variable']).optional(),
+  "description": zod.string().optional(),
+  "date": zod.string().optional()
+})
+
+export const UpdateExpenseResponse = zod.object({
+  "id": zod.number(),
+  "barbershopId": zod.number(),
+  "amount": zod.number(),
+  "category": zod.enum(['rent', 'salaries', 'supplies', 'utilities', 'marketing', 'equipment', 'maintenance', 'insurance', 'taxes', 'other']),
+  "type": zod.enum(['fixed', 'variable']),
+  "description": zod.string().nullish(),
+  "date": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete an expense
+ */
+export const DeleteExpenseParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Full financial summary — revenue, expenses, profit, DRE, chart
+ */
+export const GetFinancialSummaryQueryParams = zod.object({
+  "barbershopId": zod.coerce.number(),
+  "month": zod.coerce.string().nullish()
+})
+
+export const GetFinancialSummaryResponse = zod.object({
+  "month": zod.string(),
+  "revenue": zod.number(),
+  "totalExpenses": zod.number(),
+  "fixedExpenses": zod.number(),
+  "variableExpenses": zod.number(),
+  "grossProfit": zod.number(),
+  "netProfit": zod.number(),
+  "profitMargin": zod.number(),
+  "avgTicket": zod.number(),
+  "totalAppointments": zod.number(),
+  "expensesByCategory": zod.array(zod.object({
+  "category": zod.string(),
+  "amount": zod.number()
+})),
+  "chartData": zod.array(zod.object({
+  "date": zod.string(),
+  "revenue": zod.number(),
+  "expenses": zod.number(),
+  "profit": zod.number()
+}))
+})
+
+
+/**
  * @summary Get dashboard summary (revenue, appointments, clients)
  */
 export const GetDashboardSummaryQueryParams = zod.object({

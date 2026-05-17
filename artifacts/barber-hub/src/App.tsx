@@ -14,6 +14,7 @@ import DashboardClientDetail from "@/pages/dashboard/clients/[id]";
 import DashboardBarbers from "@/pages/dashboard/barbers";
 import DashboardServices from "@/pages/dashboard/services";
 import DashboardSettings from "@/pages/dashboard/settings";
+import DashboardFinancial from "@/pages/dashboard/financial";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,6 +40,7 @@ function Router() {
       <Route path="/dashboard/clients/:id" component={DashboardClientDetail} />
       <Route path="/dashboard/barbers" component={DashboardBarbers} />
       <Route path="/dashboard/services" component={DashboardServices} />
+      <Route path="/dashboard/financial" component={DashboardFinancial} />
       <Route path="/dashboard/settings" component={DashboardSettings} />
 
       {/* 404 */}

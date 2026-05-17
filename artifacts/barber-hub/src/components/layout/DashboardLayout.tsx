@@ -2,7 +2,7 @@ import React from "react";
 import { Link, useLocation } from "wouter";
 import { 
   Scissors, LayoutDashboard, Calendar, Users, 
-  UserSquare2, Settings, ScissorsSquare, LogOut, Bell, Search 
+  UserSquare2, Settings, ScissorsSquare, LogOut, Bell, Search, TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -12,6 +12,7 @@ const navItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/appointments", label: "Appointments", icon: Calendar },
   { href: "/dashboard/clients", label: "Clients", icon: Users },
+  { href: "/dashboard/financial", label: "Financial", icon: TrendingUp },
   { href: "/dashboard/barbers", label: "Barbers", icon: UserSquare2 },
   { href: "/dashboard/services", label: "Services", icon: ScissorsSquare },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },

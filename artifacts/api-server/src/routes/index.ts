@@ -6,6 +6,7 @@ import servicesRouter from "./services";
 import appointmentsRouter from "./appointments";
 import clientsRouter from "./clients";
 import reviewsRouter from "./reviews";
+import expensesRouter from "./expenses";
 import marketplaceRouter from "./marketplace";
 import dashboardRouter from "./dashboard";
 
@@ -19,6 +20,7 @@ router.use(servicesRouter);
 router.use(appointmentsRouter);
 router.use(clientsRouter);
 router.use(reviewsRouter);
+router.use(expensesRouter);
 router.use(dashboardRouter);
 
 export default router;

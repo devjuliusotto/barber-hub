@@ -321,6 +321,134 @@ export interface RevenueDataPoint {
   appointments: number;
 }
 
+export type ExpenseCategory = typeof ExpenseCategory[keyof typeof ExpenseCategory];
+
+
+export const ExpenseCategory = {
+  rent: 'rent',
+  salaries: 'salaries',
+  supplies: 'supplies',
+  utilities: 'utilities',
+  marketing: 'marketing',
+  equipment: 'equipment',
+  maintenance: 'maintenance',
+  insurance: 'insurance',
+  taxes: 'taxes',
+  other: 'other',
+} as const;
+
+export type ExpenseType = typeof ExpenseType[keyof typeof ExpenseType];
+
+
+export const ExpenseType = {
+  fixed: 'fixed',
+  variable: 'variable',
+} as const;
+
+export interface Expense {
+  id: number;
+  barbershopId: number;
+  amount: number;
+  category: ExpenseCategory;
+  type: ExpenseType;
+  /** @nullable */
+  description?: string | null;
+  date: string;
+  createdAt: string;
+}
+
+export type ExpenseInputCategory = typeof ExpenseInputCategory[keyof typeof ExpenseInputCategory];
+
+
+export const ExpenseInputCategory = {
+  rent: 'rent',
+  salaries: 'salaries',
+  supplies: 'supplies',
+  utilities: 'utilities',
+  marketing: 'marketing',
+  equipment: 'equipment',
+  maintenance: 'maintenance',
+  insurance: 'insurance',
+  taxes: 'taxes',
+  other: 'other',
+} as const;
+
+export type ExpenseInputType = typeof ExpenseInputType[keyof typeof ExpenseInputType];
+
+
+export const ExpenseInputType = {
+  fixed: 'fixed',
+  variable: 'variable',
+} as const;
+
+export interface ExpenseInput {
+  barbershopId: number;
+  amount: number;
+  category: ExpenseInputCategory;
+  type: ExpenseInputType;
+  description?: string;
+  date: string;
+}
+
+export type ExpenseUpdateCategory = typeof ExpenseUpdateCategory[keyof typeof ExpenseUpdateCategory];
+
+
+export const ExpenseUpdateCategory = {
+  rent: 'rent',
+  salaries: 'salaries',
+  supplies: 'supplies',
+  utilities: 'utilities',
+  marketing: 'marketing',
+  equipment: 'equipment',
+  maintenance: 'maintenance',
+  insurance: 'insurance',
+  taxes: 'taxes',
+  other: 'other',
+} as const;
+
+export type ExpenseUpdateType = typeof ExpenseUpdateType[keyof typeof ExpenseUpdateType];
+
+
+export const ExpenseUpdateType = {
+  fixed: 'fixed',
+  variable: 'variable',
+} as const;
+
+export interface ExpenseUpdate {
+  amount?: number;
+  category?: ExpenseUpdateCategory;
+  type?: ExpenseUpdateType;
+  description?: string;
+  date?: string;
+}
+
+export type FinancialSummaryExpensesByCategoryItem = {
+  category: string;
+  amount: number;
+};
+
+export type FinancialSummaryChartDataItem = {
+  date: string;
+  revenue: number;
+  expenses: number;
+  profit: number;
+};
+
+export interface FinancialSummary {
+  month: string;
+  revenue: number;
+  totalExpenses: number;
+  fixedExpenses: number;
+  variableExpenses: number;
+  grossProfit: number;
+  netProfit: number;
+  profitMargin: number;
+  avgTicket: number;
+  totalAppointments: number;
+  expensesByCategory: FinancialSummaryExpensesByCategoryItem[];
+  chartData: FinancialSummaryChartDataItem[];
+}
+
 export type SearchBarbershopsParams = {
 city?: string;
 specialty?: string;
@@ -387,6 +515,24 @@ barbershopId?: number | null;
  * @nullable
  */
 barberId?: number | null;
+};
+
+export type ListExpensesParams = {
+barbershopId: number;
+/**
+ * YYYY-MM filter
+ * @nullable
+ */
+month?: string | null;
+};
+
+export type GetFinancialSummaryParams = {
+barbershopId: number;
+/**
+ * YYYY-MM — defaults to current month
+ * @nullable
+ */
+month?: string | null;
 };
 
 export type GetDashboardSummaryParams = {

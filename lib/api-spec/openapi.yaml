@@ -24,6 +24,8 @@ tags:
     description: Reviews and ratings
   - name: dashboard
     description: Dashboard and analytics
+  - name: expenses
+    description: Expense tracking and financial management
   - name: marketplace
     description: Public marketplace discovery
 
@@ -603,7 +605,113 @@ paths:
               schema:
                 $ref: "#/components/schemas/Review"
 
+  # ── Expenses ──────────────────────────────────────────────────────────────────
+  /expenses:
+    get:
+      operationId: listExpenses
+      tags: [expenses]
+      summary: List expenses for a barbershop
+      parameters:
+        - in: query
+          name: barbershopId
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: month
+          schema:
+            type: ["string", "null"]
+            description: "YYYY-MM filter"
+      responses:
+        "200":
+          description: List of expenses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Expense"
+    post:
+      operationId: createExpense
+      tags: [expenses]
+      summary: Create a new expense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Expense"
+
+  /expenses/{id}:
+    patch:
+      operationId: updateExpense
+      tags: [expenses]
+      summary: Update an expense
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Expense"
+    delete:
+      operationId: deleteExpense
+      tags: [expenses]
+      summary: Delete an expense
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
   # ── Dashboard ─────────────────────────────────────────────────────────────────
+  /dashboard/financial:
+    get:
+      operationId: getFinancialSummary
+      tags: [dashboard]
+      summary: Full financial summary — revenue, expenses, profit, DRE, chart
+      parameters:
+        - in: query
+          name: barbershopId
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: month
+          schema:
+            type: ["string", "null"]
+            description: "YYYY-MM — defaults to current month"
+      responses:
+        "200":
+          description: Financial summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialSummary"
+
   /dashboard/summary:
     get:
       operationId: getDashboardSummary
@@ -1191,3 +1299,110 @@ components:
           type: number
         appointments:
           type: integer
+
+    Expense:
+      type: object
+      required: [id, barbershopId, amount, category, type, date, createdAt]
+      properties:
+        id:
+          type: integer
+        barbershopId:
+          type: integer
+        amount:
+          type: number
+        category:
+          type: string
+          enum: [rent, salaries, supplies, utilities, marketing, equipment, maintenance, insurance, taxes, other]
+        type:
+          type: string
+          enum: [fixed, variable]
+        description:
+          type: ["string", "null"]
+        date:
+          type: string
+        createdAt:
+          type: string
+
+    ExpenseInput:
+      type: object
+      required: [barbershopId, amount, category, type, date]
+      properties:
+        barbershopId:
+          type: integer
+        amount:
+          type: number
+        category:
+          type: string
+          enum: [rent, salaries, supplies, utilities, marketing, equipment, maintenance, insurance, taxes, other]
+        type:
+          type: string
+          enum: [fixed, variable]
+        description:
+          type: string
+        date:
+          type: string
+
+    ExpenseUpdate:
+      type: object
+      properties:
+        amount:
+          type: number
+        category:
+          type: string
+          enum: [rent, salaries, supplies, utilities, marketing, equipment, maintenance, insurance, taxes, other]
+        type:
+          type: string
+          enum: [fixed, variable]
+        description:
+          type: string
+        date:
+          type: string
+
+    FinancialSummary:
+      type: object
+      required: [month, revenue, totalExpenses, fixedExpenses, variableExpenses, grossProfit, netProfit, profitMargin, avgTicket, totalAppointments, expensesByCategory, chartData]
+      properties:
+        month:
+          type: string
+        revenue:
+          type: number
+        totalExpenses:
+          type: number
+        fixedExpenses:
+          type: number
+        variableExpenses:
+          type: number
+        grossProfit:
+          type: number
+        netProfit:
+          type: number
+        profitMargin:
+          type: number
+        avgTicket:
+          type: number
+        totalAppointments:
+          type: integer
+        expensesByCategory:
+          type: array
+          items:
+            type: object
+            required: [category, amount]
+            properties:
+              category:
+                type: string
+              amount:
+                type: number
+        chartData:
+          type: array
+          items:
+            type: object
+            required: [date, revenue, expenses, profit]
+            properties:
+              date:
+                type: string
+              revenue:
+                type: number
+              expenses:
+                type: number
+              profit:
+                type: number
