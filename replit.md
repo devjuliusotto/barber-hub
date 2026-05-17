@@ -1,69 +1,70 @@
 # Barber Hub
 
-The definitive SaaS ecosystem for barbershops in Germany — combining a public marketplace, full ERP dashboard, client CRM, and appointment management in one platform.
+SaaS marketplace and ERP for barbershops in Germany, now running as a React/Vite frontend backed directly by Supabase.
 
-## Run & Operate
+## Run
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
-- `pnpm --filter @workspace/barber-hub run dev` — run the frontend (port 21576)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm run dev` — run the Vite app on port 21576
+- `pnpm --filter @workspace/barber-hub run typecheck` — typecheck the app
+- `pnpm --filter @workspace/barber-hub run build` — production build
+- `pnpm run typecheck` — workspace typecheck
+- `pnpm run build` — workspace typecheck + build
+
+Required env for local/Vercel:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `PORT=21576`
+- `BASE_PATH=/`
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- Frontend: React 18 + Vite, TailwindCSS, Wouter, TanStack Query, Recharts, Framer Motion
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- React + Vite
+- TailwindCSS
+- Wouter
+- TanStack Query
+- Recharts
+- Supabase client
 
-## Where things live
+## Main App
 
-- `lib/api-spec/openapi.yaml` — OpenAPI contract (source of truth)
-- `lib/db/src/schema/` — Drizzle ORM schema (barbershops, barbers, services, clients, appointments, reviews)
-- `artifacts/api-server/src/routes/` — Express route handlers
-- `artifacts/barber-hub/src/` — React frontend (pages, components)
-- `lib/api-client-react/src/generated/` — Generated React Query hooks (do not hand-edit)
-- `lib/api-zod/src/generated/` — Generated Zod validation schemas (do not hand-edit)
+- `artifacts/barber-hub/src/` — React app
+- `artifacts/barber-hub/src/utils/supabase.ts` — Supabase client
+- `artifacts/barber-hub/src/lib/supabase/` — data access layer
 
-## Architecture decisions
+## Supabase Tables
 
-- Contract-first API: OpenAPI spec → Orval codegen → typed hooks + Zod validators
-- Dashboard uses `barbershopId=1` as the demo shop for all ERP views
-- Appointments enrich data at query time (joining barber/client/service names in the route handler)
-- Reviews update barbershop rating automatically on POST /reviews
-- Revenue chart computed server-side from last 30 days of completed appointments
+Barber Hub uses `bh_`-prefixed tables:
 
-## Product
+- `bh_barbershops`
+- `bh_barbers`
+- `bh_services`
+- `bh_reviews`
+- `bh_clients`
+- `bh_appointments`
+- `bh_expenses`
 
-**Public Marketplace (`/`, `/marketplace`, `/barbershops/:id`):**
-- Discover barbershops across Germany with nationality flags (🇧🇷🇹🇷🇩🇪🇪🇸🇮🇹🇳🇬)
-- Filter by city, rating, specialty, language, nationality
-- View barbershop profiles with services, barbers, and reviews
+## Product Surface
 
-**ERP Dashboard (`/dashboard/*` — owner view):**
-- Revenue KPIs, revenue chart (last 30 days), today's schedule
-- Appointment management: list, filter by status, confirm/complete/cancel
-- Client CRM: searchable list, loyalty points, spend history, preferences
-- Team management: barber profiles and availability
-- Service catalog: add/edit/delete with price and duration
-- Settings: edit barbershop profile
+Public marketplace:
 
-## User preferences
+- `/`
+- `/marketplace`
+- `/barbershops/:id`
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+ERP dashboard:
 
-## Gotchas
+- `/dashboard`
+- `/dashboard/appointments`
+- `/dashboard/clients`
+- `/dashboard/clients/:id`
+- `/dashboard/barbers`
+- `/dashboard/services`
+- `/dashboard/financial`
+- `/dashboard/settings`
 
-- After changing `lib/api-spec/openapi.yaml`, always run `pnpm --filter @workspace/api-spec run codegen`
-- Do not hand-edit files in `lib/api-client-react/src/generated/` or `lib/api-zod/src/generated/`
-- Body schema names in OpenAPI must be entity-shaped (e.g. `BarbershopInput`) not operation-shaped (e.g. `CreateBarbershopBody`) to avoid TS2308 collisions
+## Notes
 
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- The old Express/OpenAPI/Drizzle backend was removed after the migration to Supabase.
+- MVP dashboard policies are permissive and must be replaced with authenticated RLS before production launch.

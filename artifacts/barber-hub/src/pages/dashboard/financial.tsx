@@ -1,15 +1,6 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import {
-  useGetFinancialSummary,
-  useListExpenses,
-  useCreateExpense,
-  useUpdateExpense,
-  useDeleteExpense,
-  getGetFinancialSummaryQueryKey,
-  getListExpensesQueryKey,
-} from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -24,8 +15,14 @@ import { useToast } from "@/hooks/use-toast";
 import { format, subMonths } from "date-fns";
 import { Plus, Trash2, TrendingUp, TrendingDown, Wallet, Target, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const BARBERSHOP_ID = 1;
+import {
+  createExpense,
+  deleteExpense,
+  getFinancialSummary,
+  listExpenses,
+  updateExpense,
+} from "@/lib/supabase/dashboard";
+import { searchMarketplaceBarbershops } from "@/lib/supabase/barbershops";
 
 const CATEGORY_LABELS: Record<string, string> = {
   rent: "Aluguel", salaries: "Salários", supplies: "Suprimentos",
@@ -76,26 +73,38 @@ export default function DashboardFinancial() {
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ExpenseForm>(EMPTY_FORM);
 
-  const { data: fin, isLoading } = useGetFinancialSummary(
-    { barbershopId: BARBERSHOP_ID, month: selectedMonth },
-    { query: { queryKey: getGetFinancialSummaryQueryKey({ barbershopId: BARBERSHOP_ID, month: selectedMonth }) } }
-  );
+  const { data: shops } = useQuery({
+    queryKey: ["marketplaceBarbershops", "financial-primary"],
+    queryFn: () => searchMarketplaceBarbershops(),
+  });
+  const primaryShopId = shops?.[0]?.id;
 
-  const { data: expenses } = useListExpenses(
-    { barbershopId: BARBERSHOP_ID, month: selectedMonth },
-    { query: { queryKey: getListExpensesQueryKey({ barbershopId: BARBERSHOP_ID, month: selectedMonth }) } }
-  );
+  const { data: fin, isLoading } = useQuery({
+    queryKey: ["financialSummary", selectedMonth],
+    queryFn: () => getFinancialSummary(selectedMonth),
+  });
 
-  const createExpense = useCreateExpense();
-  const updateExpense = useUpdateExpense();
-  const deleteExpense = useDeleteExpense();
+  const { data: expenses } = useQuery({
+    queryKey: ["expenses", selectedMonth],
+    queryFn: () => listExpenses(selectedMonth),
+  });
+
+  const createExpenseMutation = useMutation({
+    mutationFn: createExpense,
+  });
+  const updateExpenseMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof updateExpense>[1] }) => updateExpense(id, data),
+  });
+  const deleteExpenseMutation = useMutation({
+    mutationFn: deleteExpense,
+  });
 
   async function invalidate() {
-    await qc.invalidateQueries({ queryKey: getGetFinancialSummaryQueryKey({ barbershopId: BARBERSHOP_ID, month: selectedMonth }) });
-    await qc.invalidateQueries({ queryKey: getListExpensesQueryKey({ barbershopId: BARBERSHOP_ID, month: selectedMonth }) });
+    await qc.invalidateQueries({ queryKey: ["financialSummary", selectedMonth] });
+    await qc.invalidateQueries({ queryKey: ["expenses", selectedMonth] });
   }
 
   function openAdd() {
@@ -125,22 +134,23 @@ export default function DashboardFinancial() {
       amount: parseFloat(form.amount),
       category: form.category as any,
       type: form.type as any,
-      description: form.description || undefined,
+      description: form.description || null,
       date: form.date,
     };
     if (editingId) {
-      await updateExpense.mutateAsync({ id: editingId, data: payload });
+      await updateExpenseMutation.mutateAsync({ id: editingId, data: payload });
       toast({ title: "Despesa atualizada" });
     } else {
-      await createExpense.mutateAsync({ data: { ...payload, barbershopId: BARBERSHOP_ID } });
+      if (!primaryShopId) throw new Error("No barbershop available");
+      await createExpenseMutation.mutateAsync({ ...payload, barbershopId: primaryShopId });
       toast({ title: "Despesa adicionada" });
     }
     await invalidate();
     setDialogOpen(false);
   }
 
-  async function handleDelete(id: number) {
-    await deleteExpense.mutateAsync({ id });
+  async function handleDelete(id: string) {
+    await deleteExpenseMutation.mutateAsync(id);
     toast({ title: "Despesa removida" });
     await invalidate();
   }
@@ -511,7 +521,7 @@ export default function DashboardFinancial() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={createExpense.isPending || updateExpense.isPending}>
+            <Button onClick={handleSave} disabled={createExpenseMutation.isPending || updateExpenseMutation.isPending}>
               {editingId ? "Salvar alterações" : "Adicionar"}
             </Button>
           </DialogFooter>
