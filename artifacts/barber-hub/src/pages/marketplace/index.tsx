@@ -1,5 +1,4 @@
 import { PublicLayout } from "@/components/layout/PublicLayout";
-import { useSearchBarbershops } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,17 +6,16 @@ import { Search, MapPin, Star, Scissors, Filter } from "lucide-react";
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { searchMarketplaceBarbershops } from "@/lib/supabase/barbershops";
 
 export default function Marketplace() {
   const [city, setCity] = useState("");
   const [debouncedCity, setDebouncedCity] = useState("");
 
-  const { data: barbershops, isLoading } = useSearchBarbershops({
-    city: debouncedCity || undefined,
-  }, {
-    query: {
-      queryKey: ["searchBarbershops", debouncedCity],
-    }
+  const { data: barbershops, isLoading } = useQuery({
+    queryKey: ["marketplaceBarbershops", debouncedCity],
+    queryFn: () => searchMarketplaceBarbershops(debouncedCity || undefined),
   });
 
   const handleSearch = (e: React.FormEvent) => {

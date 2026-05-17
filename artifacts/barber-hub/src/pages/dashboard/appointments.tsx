@@ -1,23 +1,19 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import {
-  useListAppointments,
-  useUpdateAppointment,
-  getListAppointmentsQueryKey,
-  getGetDashboardSummaryQueryKey,
-  getGetDashboardScheduleQueryKey,
-} from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { CheckCircle2, XCircle, Clock, CalendarDays } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { cn } from "@/lib/utils";
-
-const BARBERSHOP_ID = 1;
+import {
+  type AppointmentStatus,
+  listDashboardAppointments,
+  updateAppointmentStatus,
+} from "@/lib/supabase/dashboard";
 
 const STATUS_STYLES: Record<string, string> = {
   pending:   "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -34,19 +30,18 @@ export default function DashboardAppointments() {
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  const { data: appointments, isLoading } = useListAppointments(
-    { barbershopId: BARBERSHOP_ID, status: statusFilter === "all" ? undefined : statusFilter },
-    { query: { queryKey: getListAppointmentsQueryKey({ barbershopId: BARBERSHOP_ID, status: statusFilter === "all" ? undefined : statusFilter }) } }
-  );
+  const queryKey = ["dashboardAppointments", statusFilter];
+  const { data: appointments, isLoading } = useQuery({
+    queryKey,
+    queryFn: () => listDashboardAppointments(statusFilter === "all" ? undefined : statusFilter),
+  });
 
-  const updateAppointment = useUpdateAppointment();
-
-  async function handleStatusUpdate(id: number, status: string) {
-    await updateAppointment.mutateAsync({ id, data: { status: status as "pending" | "confirmed" | "completed" | "cancelled" | "no_show" } });
+  async function handleStatusUpdate(id: string, status: AppointmentStatus) {
+    await updateAppointmentStatus(id, status);
     toast({ title: "Appointment updated", description: `Status changed to ${status}.` });
-    await qc.invalidateQueries({ queryKey: getListAppointmentsQueryKey({ barbershopId: BARBERSHOP_ID }) });
-    await qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey({ barbershopId: BARBERSHOP_ID }) });
-    await qc.invalidateQueries({ queryKey: getGetDashboardScheduleQueryKey({ barbershopId: BARBERSHOP_ID }) });
+    await qc.invalidateQueries({ queryKey: ["dashboardAppointments"] });
+    await qc.invalidateQueries({ queryKey: ["dashboardClients"] });
+    await qc.invalidateQueries({ queryKey: ["takenAppointmentSlots"] });
   }
 
   const sorted = appointments?.slice().sort(
@@ -118,11 +113,11 @@ export default function DashboardAppointments() {
               sorted?.map(apt => {
                 const isActive = apt.status === "pending" || apt.status === "confirmed";
                 const whatsappData = {
-                  clientName: apt.clientName,
-                  clientPhone: apt.clientPhone,
-                  serviceName: apt.serviceName,
-                  barberName: apt.barberName,
-                  barbershopName: apt.barbershopName,
+                  clientName: apt.clientName ?? null,
+                  clientPhone: apt.clientPhone ?? null,
+                  serviceName: apt.serviceName ?? null,
+                  barberName: apt.barberName ?? null,
+                  barbershopName: apt.barbershopName ?? null,
                   scheduledAt: apt.scheduledAt,
                   price: apt.price,
                 };

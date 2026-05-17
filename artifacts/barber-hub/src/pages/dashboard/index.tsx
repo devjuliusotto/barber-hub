@@ -1,9 +1,5 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { 
-  useGetDashboardSummary, 
-  useGetRevenueChart, 
-  useGetDashboardSchedule 
-} from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, TrendingUp, Users, Calendar, Scissors, Clock } from "lucide-react";
@@ -12,24 +8,27 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from "recharts";
 import { format } from "date-fns";
-
-const BARBERSHOP_ID = 1; // Demo ID
+import {
+  getDashboardSchedule,
+  getDashboardSummary,
+  getRevenueChart,
+} from "@/lib/supabase/dashboard";
 
 export default function DashboardHome() {
-  const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary(
-    { barbershopId: BARBERSHOP_ID },
-    { query: { enabled: true, queryKey: ["dashboardSummary", BARBERSHOP_ID] } }
-  );
+  const { data: summary, isLoading: isLoadingSummary } = useQuery({
+    queryKey: ["dashboardSummary"],
+    queryFn: getDashboardSummary,
+  });
 
-  const { data: chartData, isLoading: isLoadingChart } = useGetRevenueChart(
-    { barbershopId: BARBERSHOP_ID },
-    { query: { enabled: true, queryKey: ["revenueChart", BARBERSHOP_ID] } }
-  );
+  const { data: chartData, isLoading: isLoadingChart } = useQuery({
+    queryKey: ["revenueChart"],
+    queryFn: getRevenueChart,
+  });
 
-  const { data: schedule, isLoading: isLoadingSchedule } = useGetDashboardSchedule(
-    { barbershopId: BARBERSHOP_ID },
-    { query: { enabled: true, queryKey: ["dashboardSchedule", BARBERSHOP_ID] } }
-  );
+  const { data: schedule, isLoading: isLoadingSchedule } = useQuery({
+    queryKey: ["dashboardSchedule"],
+    queryFn: getDashboardSchedule,
+  });
 
   const statCards = [
     {
@@ -180,7 +179,7 @@ export default function DashboardHome() {
               </div>
             ) : schedule && schedule.length > 0 ? (
               <div className="space-y-4">
-                {schedule.map((apt: any) => (
+                {schedule.map((apt) => (
                   <div key={apt.id} className="flex items-start gap-4 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
                     <div className="flex flex-col items-center justify-center bg-primary/10 text-primary rounded-md w-12 h-12 flex-shrink-0">
                       <Clock className="h-4 w-4 mb-0.5" />

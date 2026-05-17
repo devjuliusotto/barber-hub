@@ -1,14 +1,5 @@
 import { useState, useMemo } from "react";
-import {
-  useListAppointments,
-  useCreateClient,
-  useCreateAppointment,
-  getListAppointmentsQueryKey,
-  getGetDashboardSummaryQueryKey,
-  getGetDashboardScheduleQueryKey,
-  getGetRevenueChartQueryKey,
-} from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,19 +8,20 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CheckCircle2, Clock, ChevronRight, ChevronLeft, Calendar, User, Scissors, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { createBooking, listTakenAppointmentSlots } from "@/lib/supabase/barbershops";
 
-type Service = { id: number; name: string; price: number; durationMinutes: number; description?: string | null };
-type Barber = { id: number; name: string; nationalityFlag?: string; nationality?: string; rating?: number; avatarUrl?: string | null };
+type Service = { id: string; name: string; price: number; durationMinutes: number; description?: string | null };
+type Barber = { id: string; name: string; nationalityFlag?: string | null; nationality?: string | null; rating?: number; avatarUrl?: string | null };
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  barbershopId: number;
+  barbershopId: string;
   barbershopName: string;
   services: Service[];
   barbers: Barber[];
-  preselectedServiceId?: number;
-  preselectedBarberId?: number;
+  preselectedServiceId?: string;
+  preselectedBarberId?: string;
 }
 
 type Step = "service" | "barber" | "datetime" | "details" | "success";
@@ -104,39 +96,30 @@ export function BookingModal({
   const qc = useQueryClient();
 
   const [step, setStep] = useState<Step>(preselectedServiceId ? (preselectedBarberId ? "datetime" : "barber") : "service");
-  const [selectedServiceId, setSelectedServiceId] = useState<number | undefined>(preselectedServiceId);
-  const [selectedBarberId, setSelectedBarberId] = useState<number | undefined>(preselectedBarberId);
+  const [selectedServiceId, setSelectedServiceId] = useState<string | undefined>(preselectedServiceId);
+  const [selectedBarberId, setSelectedBarberId] = useState<string | undefined>(preselectedBarberId);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedSlot, setSelectedSlot] = useState<string | undefined>();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [bookedAppointmentId, setBookedAppointmentId] = useState<number | undefined>();
+  const [bookedAppointmentId, setBookedAppointmentId] = useState<string | undefined>();
 
   const selectedService = services.find(s => s.id === selectedServiceId);
   const selectedBarber = barbers.find(b => b.id === selectedBarberId);
 
-  const { data: existingAppointments } = useListAppointments(
-    { barbershopId, barberId: selectedBarberId },
-    { query: { enabled: !!selectedBarberId, queryKey: getListAppointmentsQueryKey({ barbershopId, barberId: selectedBarberId }) } }
-  );
+  const { data: takenSlots = [] } = useQuery({
+    queryKey: ["takenAppointmentSlots", barbershopId, selectedBarberId],
+    queryFn: () => listTakenAppointmentSlots(barbershopId, selectedBarberId),
+    enabled: !!selectedBarberId,
+  });
 
   const availableDays = useMemo(() => getNextDays(14), []);
-
-  const takenSlots = useMemo(
-    () => (existingAppointments ?? [])
-      .filter(a => a.status !== "cancelled" && a.status !== "no_show")
-      .map(a => a.scheduledAt),
-    [existingAppointments]
-  );
 
   const slotsForDay = useMemo(() => {
     if (!selectedDate || !selectedService) return [];
     return generateSlots(selectedDate, selectedService.durationMinutes, takenSlots);
   }, [selectedDate, selectedService, takenSlots]);
-
-  const createClient = useCreateClient();
-  const createAppointment = useCreateAppointment();
 
   function resetAndClose() {
     setStep(preselectedServiceId ? (preselectedBarberId ? "datetime" : "barber") : "service");
@@ -156,24 +139,17 @@ export function BookingModal({
     if (!name.trim()) return;
     setSubmitting(true);
     try {
-      const client = await createClient.mutateAsync({
-        data: { name: name.trim(), phone: phone.trim() || undefined, barbershopId },
-      });
-      const appt = await createAppointment.mutateAsync({
-        data: {
-          clientId: client.id,
-          barberId: selectedBarberId,
-          serviceId: selectedServiceId,
-          barbershopId,
-          scheduledAt: selectedSlot,
-          price: selectedService.price,
-        },
+      const appt = await createBooking({
+        barbershopId,
+        clientName: name.trim(),
+        clientPhone: phone.trim() || undefined,
+        barberId: selectedBarberId,
+        serviceId: selectedServiceId,
+        scheduledAt: selectedSlot,
+        price: selectedService.price,
       });
       setBookedAppointmentId(appt.id);
-      await qc.invalidateQueries({ queryKey: getListAppointmentsQueryKey({ barbershopId }) });
-      await qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey({ barbershopId }) });
-      await qc.invalidateQueries({ queryKey: getGetDashboardScheduleQueryKey({ barbershopId }) });
-      await qc.invalidateQueries({ queryKey: getGetRevenueChartQueryKey({ barbershopId }) });
+      await qc.invalidateQueries({ queryKey: ["takenAppointmentSlots", barbershopId, selectedBarberId] });
       setStep("success");
     } finally {
       setSubmitting(false);
@@ -457,7 +433,7 @@ export function BookingModal({
                 {bookedAppointmentId && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Booking ref</span>
-                    <Badge variant="outline">#{String(bookedAppointmentId).padStart(5, "0")}</Badge>
+                    <Badge variant="outline">#{bookedAppointmentId.slice(0, 8)}</Badge>
                   </div>
                 )}
               </div>

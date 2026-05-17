@@ -1,5 +1,5 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useListClients, getListClientsQueryKey } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,16 +8,15 @@ import { Search, Plus, Users } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import { LoyaltyProgressBar, TierBadge } from "@/components/LoyaltyCard";
-
-const BARBERSHOP_ID = 1;
+import { listDashboardClients } from "@/lib/supabase/dashboard";
 
 export default function DashboardClients() {
   const [search, setSearch] = useState("");
 
-  const { data: clients, isLoading } = useListClients(
-    { barbershopId: BARBERSHOP_ID, q: search || undefined },
-    { query: { queryKey: getListClientsQueryKey({ barbershopId: BARBERSHOP_ID, q: search || undefined }) } }
-  );
+  const { data: clients, isLoading } = useQuery({
+    queryKey: ["dashboardClients", search],
+    queryFn: () => listDashboardClients(search || undefined),
+  });
 
   const totalPoints = clients?.reduce((sum, c) => sum + (c.loyaltyPoints ?? 0), 0) ?? 0;
   const loyalClients = clients?.filter(c => (c.loyaltyPoints ?? 0) >= 100).length ?? 0;

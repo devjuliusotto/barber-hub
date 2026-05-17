@@ -1,18 +1,25 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useListBarbers } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Plus, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-
-const BARBERSHOP_ID = 1;
+import { listBarbers, searchMarketplaceBarbershops } from "@/lib/supabase/barbershops";
 
 export default function DashboardBarbers() {
-  const { data: barbers, isLoading } = useListBarbers(
-    { barbershopId: BARBERSHOP_ID },
-    { query: { queryKey: ["listBarbers", BARBERSHOP_ID] } }
-  );
+  const { data: shops } = useQuery({
+    queryKey: ["marketplaceBarbershops", "dashboard-team"],
+    queryFn: () => searchMarketplaceBarbershops(),
+  });
+
+  const primaryShopId = shops?.[0]?.id;
+
+  const { data: barbers, isLoading } = useQuery({
+    queryKey: ["dashboardBarbers", primaryShopId],
+    queryFn: () => listBarbers(primaryShopId ?? ""),
+    enabled: !!primaryShopId,
+  });
 
   return (
     <DashboardLayout>
@@ -37,11 +44,11 @@ export default function DashboardBarbers() {
                     <AvatarFallback>{barber.name.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col items-end gap-2">
-                    <Badge variant={barber.isAvailable ? "default" : "secondary"}>
-                      {barber.isAvailable ? "Available" : "Unavailable"}
+                    <Badge variant="default">
+                      Available
                     </Badge>
                     {barber.nationalityFlag && (
-                      <span className="text-xl" title={barber.nationality}>{barber.nationalityFlag}</span>
+                      <span className="text-xl" title={barber.nationality ?? ""}>{barber.nationalityFlag}</span>
                     )}
                   </div>
                 </div>
@@ -59,7 +66,7 @@ export default function DashboardBarbers() {
                 )}
 
                 <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                  {barber.bio || "No bio provided."}
+                  {barber.role}
                 </p>
 
                 <div className="flex flex-wrap gap-2 mb-6">

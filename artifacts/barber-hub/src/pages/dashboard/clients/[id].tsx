@@ -1,12 +1,5 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import {
-  useGetClient,
-  useListAppointments,
-  useUpdateAppointment,
-  getGetClientQueryKey,
-  getListAppointmentsQueryKey,
-} from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,6 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { LoyaltyCard, TierBadge } from "@/components/LoyaltyCard";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { cn } from "@/lib/utils";
+import {
+  type AppointmentStatus,
+  getDashboardClient,
+  listClientAppointments,
+  updateAppointmentStatus,
+} from "@/lib/supabase/dashboard";
 
 const STATUS_STYLES: Record<string, string> = {
   pending:   "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -28,25 +27,27 @@ const STATUS_STYLES: Record<string, string> = {
 
 export default function DashboardClientDetail() {
   const { id } = useParams<{ id: string }>();
-  const clientId = parseInt(id, 10);
-  const barbershopId = 1;
+  const clientId = id;
   const qc = useQueryClient();
 
-  const { data: client, isLoading } = useGetClient(clientId, {
-    query: { enabled: !!clientId, queryKey: getGetClientQueryKey(clientId) },
+  const { data: client, isLoading } = useQuery({
+    queryKey: ["dashboardClient", clientId],
+    queryFn: () => getDashboardClient(clientId),
+    enabled: !!clientId,
   });
 
-  const { data: appointments } = useListAppointments(
-    { clientId, barbershopId },
-    { query: { enabled: !!clientId, queryKey: getListAppointmentsQueryKey({ clientId, barbershopId }) } }
-  );
+  const { data: appointments } = useQuery({
+    queryKey: ["clientAppointments", clientId],
+    queryFn: () => listClientAppointments(clientId),
+    enabled: !!clientId,
+  });
 
-  const updateAppointment = useUpdateAppointment();
-
-  async function handleStatusChange(apptId: number, status: string) {
-    await updateAppointment.mutateAsync({ id: apptId, data: { status: status as "pending" | "confirmed" | "completed" | "cancelled" | "no_show" } });
-    await qc.invalidateQueries({ queryKey: getGetClientQueryKey(clientId) });
-    await qc.invalidateQueries({ queryKey: getListAppointmentsQueryKey({ clientId, barbershopId }) });
+  async function handleStatusChange(apptId: string, status: AppointmentStatus) {
+    await updateAppointmentStatus(apptId, status);
+    await qc.invalidateQueries({ queryKey: ["dashboardClient", clientId] });
+    await qc.invalidateQueries({ queryKey: ["clientAppointments", clientId] });
+    await qc.invalidateQueries({ queryKey: ["dashboardAppointments"] });
+    await qc.invalidateQueries({ queryKey: ["dashboardClients"] });
   }
 
   if (isLoading || !client) {
@@ -180,9 +181,9 @@ export default function DashboardClientDetail() {
                   const waData = {
                     clientName: client.name,
                     clientPhone: client.phone ?? null,
-                    serviceName: apt.serviceName,
-                    barberName: apt.barberName,
-                    barbershopName: apt.barbershopName,
+                    serviceName: apt.serviceName ?? null,
+                    barberName: apt.barberName ?? null,
+                    barbershopName: apt.barbershopName ?? null,
                     scheduledAt: apt.scheduledAt,
                     price: apt.price,
                     loyaltyPoints: pts,
@@ -257,9 +258,9 @@ export default function DashboardClientDetail() {
                         const waData = {
                           clientName: client.name,
                           clientPhone: client.phone ?? null,
-                          serviceName: apt.serviceName,
-                          barberName: apt.barberName,
-                          barbershopName: apt.barbershopName,
+                          serviceName: apt.serviceName ?? null,
+                          barberName: apt.barberName ?? null,
+                          barbershopName: apt.barbershopName ?? null,
                           scheduledAt: apt.scheduledAt,
                           price: apt.price,
                           loyaltyPoints: pts,

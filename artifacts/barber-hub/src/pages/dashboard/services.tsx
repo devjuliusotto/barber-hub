@@ -1,5 +1,5 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useListServices } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Plus, MoreHorizontal, Clock, Edit, Trash } from "lucide-react";
@@ -10,14 +10,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-const BARBERSHOP_ID = 1;
+import { listServices, searchMarketplaceBarbershops } from "@/lib/supabase/barbershops";
 
 export default function DashboardServices() {
-  const { data: services, isLoading } = useListServices(
-    { barbershopId: BARBERSHOP_ID },
-    { query: { queryKey: ["listServices", BARBERSHOP_ID] } }
-  );
+  const { data: shops } = useQuery({
+    queryKey: ["marketplaceBarbershops", "dashboard-services"],
+    queryFn: () => searchMarketplaceBarbershops(),
+  });
+
+  const primaryShopId = shops?.[0]?.id;
+
+  const { data: services, isLoading } = useQuery({
+    queryKey: ["dashboardServices", primaryShopId],
+    queryFn: () => listServices(primaryShopId ?? ""),
+    enabled: !!primaryShopId,
+  });
 
   return (
     <DashboardLayout>
@@ -62,7 +69,7 @@ export default function DashboardServices() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="bg-muted/50">{service.category || "General"}</Badge>
+                    <Badge variant="outline" className="bg-muted/50">General</Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5 text-muted-foreground">

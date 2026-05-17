@@ -1,5 +1,4 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useGetBarbershop, useUpdateBarbershop } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,25 +6,28 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Save } from "lucide-react";
-
-const BARBERSHOP_ID = 1;
+import { getPrimaryBarbershop, updateBarbershopProfile } from "@/lib/supabase/barbershops";
 
 export default function DashboardSettings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: shop, isLoading } = useGetBarbershop(BARBERSHOP_ID, {
-    query: { queryKey: ["getBarbershop", BARBERSHOP_ID] }
+  const { data: shop, isLoading } = useQuery({
+    queryKey: ["primaryBarbershop"],
+    queryFn: getPrimaryBarbershop,
   });
 
-  const updateShop = useUpdateBarbershop({
-    mutation: {
-      onSuccess: () => {
-        toast({ title: "Settings saved successfully" });
-        queryClient.invalidateQueries({ queryKey: ["getBarbershop", BARBERSHOP_ID] });
-      }
+  const updateShop = useMutation({
+    mutationFn: (data: typeof formData) => {
+      if (!shop) throw new Error("Barbershop not loaded");
+      return updateBarbershopProfile(shop.id, data);
+    },
+    onSuccess: async () => {
+      toast({ title: "Settings saved successfully" });
+      await queryClient.invalidateQueries({ queryKey: ["primaryBarbershop"] });
+      await queryClient.invalidateQueries({ queryKey: ["marketplaceBarbershops"] });
     }
   });
 
@@ -53,7 +55,7 @@ export default function DashboardSettings() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateShop.mutate({ id: BARBERSHOP_ID, data: formData });
+    updateShop.mutate(formData);
   };
 
   if (isLoading) return <DashboardLayout><div className="p-8 text-center">Loading settings...</div></DashboardLayout>;

@@ -1,16 +1,7 @@
 import { useState } from "react";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { BookingModal } from "@/components/BookingModal";
-import {
-  useGetBarbershop,
-  useListServices,
-  useListBarbers,
-  useListReviews,
-  getGetBarbershopQueryKey,
-  getListServicesQueryKey,
-  getListBarbersQueryKey,
-  getListReviewsQueryKey,
-} from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { MapPin, Star, Clock, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,32 +9,46 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  getBarbershopDetail,
+  listBarbers,
+  listReviews,
+  listServices,
+} from "@/lib/supabase/barbershops";
 
 export default function BarbershopDetail() {
   const { id } = useParams<{ id: string }>();
-  const barbershopId = parseInt(id, 10);
+  const barbershopId = id;
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [preselectedServiceId, setPreselectedServiceId] = useState<number | undefined>();
-  const [preselectedBarberId, setPreselectedBarberId] = useState<number | undefined>();
+  const [preselectedServiceId, setPreselectedServiceId] = useState<string | undefined>();
+  const [preselectedBarberId, setPreselectedBarberId] = useState<string | undefined>();
 
-  const { data: shop, isLoading: isLoadingShop } = useGetBarbershop(barbershopId, {
-    query: { enabled: !!barbershopId, queryKey: getGetBarbershopQueryKey(barbershopId) },
+  const { data: shop, isLoading: isLoadingShop } = useQuery({
+    queryKey: ["barbershopDetail", barbershopId],
+    queryFn: () => getBarbershopDetail(barbershopId),
+    enabled: !!barbershopId,
   });
 
-  const { data: services } = useListServices({ barbershopId }, {
-    query: { enabled: !!barbershopId, queryKey: getListServicesQueryKey({ barbershopId }) },
+  const { data: services } = useQuery({
+    queryKey: ["barbershopServices", barbershopId],
+    queryFn: () => listServices(barbershopId),
+    enabled: !!barbershopId,
   });
 
-  const { data: barbers } = useListBarbers({ barbershopId }, {
-    query: { enabled: !!barbershopId, queryKey: getListBarbersQueryKey({ barbershopId }) },
+  const { data: barbers } = useQuery({
+    queryKey: ["barbershopBarbers", barbershopId],
+    queryFn: () => listBarbers(barbershopId),
+    enabled: !!barbershopId,
   });
 
-  const { data: reviews } = useListReviews({ barbershopId }, {
-    query: { enabled: !!barbershopId, queryKey: getListReviewsQueryKey({ barbershopId }) },
+  const { data: reviews } = useQuery({
+    queryKey: ["barbershopReviews", barbershopId],
+    queryFn: () => listReviews(barbershopId),
+    enabled: !!barbershopId,
   });
 
-  function openBooking(serviceId?: number, barberId?: number) {
+  function openBooking(serviceId?: string, barberId?: string) {
     setPreselectedServiceId(serviceId);
     setPreselectedBarberId(barberId);
     setModalOpen(true);
@@ -108,7 +113,7 @@ export default function BarbershopDetail() {
               </div>
               <h1 className="font-display text-4xl md:text-5xl font-bold">{shop.name}</h1>
               <p className="flex items-center text-white/80 mt-2 text-lg">
-                <MapPin className="h-5 w-5 mr-1.5" /> {shop.address}, {shop.city}
+                <MapPin className="h-5 w-5 mr-1.5" /> {[shop.address, shop.city].filter(Boolean).join(", ")}
               </p>
             </div>
             <div className="flex items-center gap-4 bg-black/40 backdrop-blur-md p-4 rounded-xl border border-white/10">
@@ -212,7 +217,7 @@ export default function BarbershopDetail() {
                       <h3 className="font-bold text-lg flex items-center justify-center gap-2">
                         {barber.name}
                         {barber.nationalityFlag && (
-                          <span title={barber.nationality} className="text-base">{barber.nationalityFlag}</span>
+                          <span title={barber.nationality ?? ""} className="text-base">{barber.nationalityFlag}</span>
                         )}
                       </h3>
                       {barber.rating ? (
