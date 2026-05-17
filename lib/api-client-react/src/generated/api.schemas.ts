@@ -180,6 +180,8 @@ export interface Appointment {
   clientId: number;
   /** @nullable */
   clientName?: string | null;
+  /** @nullable */
+  clientPhone?: string | null;
   barberId: number;
   /** @nullable */
   barberName?: string | null;

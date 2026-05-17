@@ -10,12 +10,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Mail, Phone, Calendar, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LoyaltyCard, TierBadge } from "@/components/LoyaltyCard";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { cn } from "@/lib/utils";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -84,9 +84,29 @@ export default function DashboardClientDetail() {
                 <AvatarFallback className="text-2xl font-bold">{client.name.charAt(0)}</AvatarFallback>
               </Avatar>
               <h2 className="font-display text-2xl font-bold">{client.name}</h2>
-              <div className="flex items-center justify-center gap-2 mt-2">
+              <div className="flex items-center justify-center mt-2">
                 <TierBadge points={pts} className="text-sm px-3 py-1" />
               </div>
+              {/* WhatsApp quick-contact */}
+              {client.phone && (
+                <div className="mt-4">
+                  <WhatsAppButton
+                    appointment={{
+                      clientName: client.name,
+                      clientPhone: client.phone,
+                      serviceName: null,
+                      barberName: null,
+                      barbershopName: "Barber Hub",
+                      scheduledAt: new Date().toISOString(),
+                      price: 0,
+                      loyaltyPoints: pts,
+                    }}
+                    templates={["reminder", "thankyou"]}
+                    size="default"
+                    className="w-full justify-center"
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -105,7 +125,11 @@ export default function DashboardClientDetail() {
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
-                {client.phone || "No phone provided"}
+                {client.phone ? (
+                  <a href={`tel:${client.phone}`} className="hover:text-primary transition-colors">{client.phone}</a>
+                ) : (
+                  "No phone provided"
+                )}
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -152,34 +176,50 @@ export default function DashboardClientDetail() {
                 <CardTitle className="text-lg text-primary">Upcoming Appointments</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {upcomingAppts.map(apt => (
-                  <div key={apt.id} className="flex items-center justify-between rounded-xl bg-background border p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Clock className="h-5 w-5 text-primary" />
+                {upcomingAppts.map(apt => {
+                  const waData = {
+                    clientName: client.name,
+                    clientPhone: client.phone ?? null,
+                    serviceName: apt.serviceName,
+                    barberName: apt.barberName,
+                    barbershopName: apt.barbershopName,
+                    scheduledAt: apt.scheduledAt,
+                    price: apt.price,
+                    loyaltyPoints: pts,
+                  };
+                  return (
+                    <div key={apt.id} className="flex items-center justify-between rounded-xl bg-background border p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                          <Clock className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-semibold">{apt.serviceName}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(apt.scheduledAt), "MMM d, yyyy 'at' HH:mm")} · {apt.barberName}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold">{apt.serviceName}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(apt.scheduledAt), "MMM d, yyyy 'at' HH:mm")} · {apt.barberName}
-                        </p>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-bold">€{apt.price.toFixed(0)}</span>
+                        <WhatsAppButton
+                          appointment={waData}
+                          templates={apt.status === "confirmed" ? ["confirmation", "reminder"] : ["confirmation"]}
+                        />
+                        {apt.status === "confirmed" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-green-700 border-green-300 hover:bg-green-50"
+                            onClick={() => handleStatusChange(apt.id, "completed")}
+                          >
+                            Done
+                          </Button>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold">€{apt.price.toFixed(0)}</span>
-                      {apt.status === "confirmed" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-green-700 border-green-300 hover:bg-green-50"
-                          onClick={() => handleStatusChange(apt.id, "completed")}
-                        >
-                          Mark Done
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           )}
@@ -199,12 +239,13 @@ export default function DashboardClientDetail() {
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Price</TableHead>
                     <TableHead className="text-right">Points</TableHead>
+                    <TableHead className="text-right">Msg</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {!appointments?.length ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
                         No appointments found.
                       </TableCell>
                     </TableRow>
@@ -212,38 +253,63 @@ export default function DashboardClientDetail() {
                     appointments
                       .slice()
                       .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())
-                      .map(apt => (
-                        <TableRow key={apt.id}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-muted-foreground" />
-                              {format(new Date(apt.scheduledAt), "MMM d, yyyy")}
-                            </div>
-                          </TableCell>
-                          <TableCell>{apt.serviceName ?? "—"}</TableCell>
-                          <TableCell>{apt.barberName ?? "—"}</TableCell>
-                          <TableCell>
-                            <span className={cn(
-                              "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
-                              STATUS_STYLES[apt.status] ?? "bg-muted text-muted-foreground"
-                            )}>
-                              {apt.status.replace("_", " ")}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right font-medium tabular-nums">
-                            €{apt.price.toFixed(2)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {apt.status === "completed" ? (
-                              <span className="text-xs font-semibold text-amber-600 tabular-nums">
-                                +{Math.floor(apt.price)} pts
+                      .map(apt => {
+                        const waData = {
+                          clientName: client.name,
+                          clientPhone: client.phone ?? null,
+                          serviceName: apt.serviceName,
+                          barberName: apt.barberName,
+                          barbershopName: apt.barbershopName,
+                          scheduledAt: apt.scheduledAt,
+                          price: apt.price,
+                          loyaltyPoints: pts,
+                          pointsEarned: Math.floor(apt.price),
+                        };
+                        return (
+                          <TableRow key={apt.id}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-muted-foreground" />
+                                {format(new Date(apt.scheduledAt), "MMM d, yyyy")}
+                              </div>
+                            </TableCell>
+                            <TableCell>{apt.serviceName ?? "—"}</TableCell>
+                            <TableCell>{apt.barberName ?? "—"}</TableCell>
+                            <TableCell>
+                              <span className={cn(
+                                "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
+                                STATUS_STYLES[apt.status] ?? "bg-muted text-muted-foreground"
+                              )}>
+                                {apt.status.replace("_", " ")}
                               </span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))
+                            </TableCell>
+                            <TableCell className="text-right font-medium tabular-nums">
+                              €{apt.price.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {apt.status === "completed" ? (
+                                <span className="text-xs font-semibold text-amber-600 tabular-nums">
+                                  +{Math.floor(apt.price)} pts
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {apt.status !== "cancelled" && apt.status !== "no_show" && (
+                                <WhatsAppButton
+                                  appointment={waData}
+                                  templates={
+                                    apt.status === "completed" ? ["thankyou"] :
+                                    apt.status === "confirmed" ? ["confirmation", "reminder"] :
+                                    ["confirmation"]
+                                  }
+                                />
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                   )}
                 </TableBody>
               </Table>

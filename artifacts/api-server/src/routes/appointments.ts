@@ -21,6 +21,7 @@ async function enrichAppointment(a: typeof appointmentsTable.$inferSelect) {
     barberName: barber?.name ?? null,
     serviceName: service?.name ?? null,
     clientName: client?.name ?? null,
+    clientPhone: client?.phone ?? null,
     barbershopName: shop?.name ?? null,
   };
 }
