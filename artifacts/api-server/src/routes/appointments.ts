@@ -25,6 +25,30 @@ async function enrichAppointment(a: typeof appointmentsTable.$inferSelect) {
   };
 }
 
+/** Award loyalty points and update stats when an appointment is completed. */
+async function awardLoyaltyPoints(appointment: typeof appointmentsTable.$inferSelect) {
+  const [client] = await db.select().from(clientsTable).where(eq(clientsTable.id, appointment.clientId));
+  if (!client) return;
+
+  const pointsEarned = Math.floor(appointment.price); // 1 pt per €1 spent
+  const completedAppts = await db
+    .select()
+    .from(appointmentsTable)
+    .where(and(eq(appointmentsTable.clientId, client.id), eq(appointmentsTable.status, "completed")));
+
+  const totalSpent = completedAppts.reduce((sum, a) => sum + a.price, 0);
+  const totalVisits = completedAppts.length;
+
+  await db.update(clientsTable)
+    .set({
+      loyaltyPoints: (client.loyaltyPoints ?? 0) + pointsEarned,
+      totalSpent,
+      totalVisits,
+      lastVisit: appointment.scheduledAt,
+    })
+    .where(eq(clientsTable.id, client.id));
+}
+
 router.get("/appointments", async (req, res): Promise<void> => {
   const query = ListAppointmentsQueryParams.safeParse(req.query);
   const conditions: SQL[] = [];
@@ -74,11 +98,30 @@ router.patch("/appointments/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [row] = await db.update(appointmentsTable).set(parsed.data).where(eq(appointmentsTable.id, params.data.id)).returning();
+
+  // Fetch the appointment before updating to detect status transitions
+  const [before] = await db.select().from(appointmentsTable).where(eq(appointmentsTable.id, params.data.id));
+  if (!before) {
+    res.status(404).json({ error: "Appointment not found" });
+    return;
+  }
+
+  const [row] = await db
+    .update(appointmentsTable)
+    .set(parsed.data)
+    .where(eq(appointmentsTable.id, params.data.id))
+    .returning();
+
   if (!row) {
     res.status(404).json({ error: "Appointment not found" });
     return;
   }
+
+  // Award loyalty points only when transitioning TO completed
+  if (parsed.data.status === "completed" && before.status !== "completed") {
+    await awardLoyaltyPoints(row);
+  }
+
   res.json(await enrichAppointment(row));
 });
 
